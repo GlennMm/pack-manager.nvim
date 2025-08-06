@@ -1,0 +1,71 @@
+# Vim/Neovim
+*.swp
+*.swo
+*~
+.netrwhist
+tags
+.tags
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.sublime-*
+
+# Node.js (if using for development tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python (if using for development tools)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+.venv/
+
+# Lua compiled files
+luac.out
+
+# Testing/Coverage
+coverage/
+.nyc_output/
+.coverage
+
+# Build artifacts
+build/
+dist/
+*.tar.gz
+*.zip
+
+# Local development files
+.env
+.env.local
+.local/
+*.local
+
+# Documentation build files
+doc/tags
+doc/tags-*
+
+# Backup files
+*.bak
+*.backup
+*~

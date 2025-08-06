@@ -1,0 +1,49 @@
+# StyLua Configuration for Pack-Manager.nvim
+
+# Column width for line wrapping
+column_width = 100
+
+# Indentation
+indent_type = "Spaces"
+indent_width = 2
+
+# Quote style for strings
+quote_style = "AutoPreferSingle"
+
+# Call parentheses style
+call_parentheses = "Always"
+
+# Collapse simple statements
+collapse_simple_statement = "Never"
+
+# Sort requires
+sort_requires = {
+  enabled = true
+}
+
+# Line endings
+line_endings = "Unix"
+
+# Include/exclude patterns
+[sort_requires]
+enabled = true
+
+# Formatting options
+[format]
+# Keep empty lines
+keep_simple_control_flow_statement = false
+
+# Function call formatting
+[call_parentheses]
+# Always include parentheses in function calls
+enabled = true
+
+# Table formatting
+[table]
+# Prefer single line tables when possible  
+prefer_single_line = true
+
+# Control flow formatting
+[control_flow]
+# Keep control flow statements simple when possible
+collapse_simple_statement = "Never"

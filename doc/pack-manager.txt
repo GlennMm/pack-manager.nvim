@@ -1,0 +1,555 @@
+*pack-manager.txt*    A modern plugin manager built on vim.pack    *pack-manager*
+
+Author: Glenn Matsiwe matsiweglenn@gmail.com
+License: MIT
+Version: 1.0.0
+
+CONTENTS                                              *pack-manager-contents*
+
+1. Introduction ............................ |pack-manager-introduction|
+2. Requirements ............................ |pack-manager-requirements|
+3. Installation ............................ |pack-manager-installation|
+4. Quick Start ............................. |pack-manager-quickstart|
+5. Configuration ........................... |pack-manager-configuration|
+6. Plugin Specification .................... |pack-manager-spec|
+7. Commands ................................ |pack-manager-commands|
+8. API Functions ........................... |pack-manager-api|
+9. Lazy Loading ............................ |pack-manager-lazy|
+10. Hooks .................................. |pack-manager-hooks|
+11. Migration Guide ........................ |pack-manager-migration|
+12. Troubleshooting ........................ |pack-manager-troubleshooting|
+
+==============================================================================
+1. INTRODUCTION                                   *pack-manager-introduction*
+
+Pack-Manager is a modern plugin manager for Neovim built on top of |vim.pack|.
+It provides lazy loading, dependency resolution, GitHub shorthand support,
+and plugin configuration management while leveraging Neovim's native plugin
+system for maximum compatibility and performance.
+
+Key Features:~
+• Built on |vim.pack| - Uses Neovim's native plugin system
+• Lazy loading - Load plugins on demand (events, commands, filetypes, keys)
+• Dependency resolution - Automatic plugin ordering
+• GitHub shorthand - Use 'user/repo' format
+• Plugin configuration - Setup and config functions
+• User commands - :Pack status, :Pack update, etc.
+• Performance focused - Fast startup with smart loading
+
+==============================================================================
+2. REQUIREMENTS                                   *pack-manager-requirements*
+
+• Neovim >= 0.8.0 (for |vim.pack| support)
+• Git >= 2.19.0 (for plugin installation)
+
+==============================================================================
+3. INSTALLATION                                   *pack-manager-installation*
+
+Using vim.pack directly (recommended):~
+>bash
+    git clone https://github.com/GlennMm/pack-manager.nvim \
+      ~/.local/share/nvim/site/pack/core/start/pack-manager.nvim
+<
+
+Using other plugin managers:~
+>lua
+    -- lazy.nvim
+    {
+      'GlennMm/pack-manager.nvim',
+      lazy = false,
+      priority = 1000,
+    }
+    
+    -- packer.nvim
+    use 'GlennMn/pack-manager.nvim'
+<
+
+Auto-installation in init.lua:~
+>lua
+    local pack_path = vim.fn.stdpath('data') .. '/site/pack/core/start/pack-manager.nvim'
+    if not vim.uv.fs_stat(pack_path) then
+      vim.fn.system({
+        'git', 'clone', '--depth=1',
+        'https://github.com/GlennMm/pack-manager.nvim.git',
+        pack_path
+      })
+      vim.cmd('packloadall!')
+    end
+<
+
+==============================================================================
+4. QUICK START                                     *pack-manager-quickstart*
+
+Basic setup:~
+>lua
+    -- lua/plugins.lua
+    local pack = require('pack-manager')
+    
+    pack.setup()
+    
+    pack.add({
+      'nvim-lua/plenary.nvim',
+      
+      {
+        src = 'nvim-treesitter/nvim-treesitter',
+        build = ':TSUpdate',
+        config = function()
+          require('nvim-treesitter.configs').setup({
+            highlight = { enable = true }
+          })
+        end
+      },
+      
+      {
+        src = 'folke/which-key.nvim',
+        keys = { '<leader>' },
+        setup = {}
+      }
+    })
+<
+
+==============================================================================
+5. CONFIGURATION                                 *pack-manager-configuration*
+
+pack-manager.setup({config})                           *pack-manager.setup()*
+    Configure pack-manager with the given options.
+
+    Parameters: ~
+        {config} (table|nil) Configuration options
+
+    Options: ~
+        {auto_install} (boolean) Automatically install missing plugins.
+                       Default: true
+
+        {auto_update} (boolean) Automatically update plugins on startup.
+                      Default: false
+
+        {show_progress} (boolean) Show progress notifications during operations.
+                        Default: true
+
+        {parallel_install} (boolean) Install plugins in parallel.
+                           Default: true
+
+        {git_timeout} (number) Timeout for git operations in seconds.
+                      Default: 60
+
+        {log_level} (number) Vim log level for messages.
+                    Default: vim.log.levels.INFO
+
+        {hooks} (table) Event hooks. See |pack-manager-hooks|
+
+        {ui} (table) UI configuration:
+            {icons} (table) Icons for status display:
+                {loaded} (string) Icon for loaded plugins. Default: "●"
+                {not_loaded} (string) Icon for not loaded plugins. Default: "○"
+                {installed} (string) Icon for installed plugins. Default: "✓"
+                {error} (string) Icon for errors. Default: "✗"
+                {pending} (string) Icon for pending operations. Default: "⏳"
+                {update} (string) Icon for updates. Default: "↑"
+
+    Example: ~
+>lua
+        require('pack-manager').setup({
+          auto_install = true,
+          show_progress = false,
+          hooks = {
+            post_install = function(data)
+              vim.notify('Installed: ' .. data.spec.src)
+            end
+          }
+        })
+<
+
+==============================================================================
+6. PLUGIN SPECIFICATION                               *pack-manager-spec*
+
+Plugin specifications define how plugins should be installed and configured.
+
+Basic formats: ~
+>lua
+    -- String format (GitHub shorthand)
+    'user/repo'
+    
+    -- Table format
+    {
+      src = 'user/repo',           -- Required: GitHub repo or full URL
+      name = 'custom-name',        -- Optional: Custom plugin name
+      version = 'v1.0.0',         -- Optional: Git tag/branch/commit
+      -- ... other options
+    }
+    
+    -- Array format
+    { 'user/repo', lazy = true, event = 'BufRead' }
+<
+
+Specification fields: ~
+
+    {src} (string) Required. Plugin source URL or GitHub shorthand.
+          Examples: 'nvim-lua/plenary.nvim', 'https://github.com/user/repo'
+
+    {name} (string) Optional. Custom plugin name. If not provided, extracted
+           from the source URL.
+
+    {version} (string) Optional. Git tag, branch, or commit hash to use.
+              Default: repository's default branch.
+
+    {lazy} (boolean) Optional. Enable lazy loading. Default: false
+
+    {event} (string|table) Optional. Events to trigger plugin loading.
+            Examples: 'BufRead', {'BufRead', 'BufNewFile'}
+
+    {cmd} (string|table) Optional. Commands to trigger plugin loading.
+          Examples: 'Telescope', {'Telescope', 'TelescopeBuiltins'}
+
+    {ft} (string|table) Optional. Filetypes to trigger plugin loading.
+         Examples: 'lua', {'lua', 'vim'}
+
+    {keys} (string|table) Optional. Key mappings to trigger plugin loading.
+           See |pack-manager-lazy| for details.
+
+    {dependencies} (table) Optional. List of plugin dependencies.
+                   Example: {'nvim-lua/plenary.nvim', 'user/another-plugin'}
+
+    {build} (string|function) Optional. Build command to run after install.
+            Examples: ':TSUpdate', 'make', function() vim.cmd('TSUpdate') end
+
+    {setup} (table|boolean|function) Optional. Configuration for plugin.setup().
+            - table: Passed to require(plugin_name).setup(config)
+            - true: Calls require(plugin_name).setup() with no config
+            - function: Custom setup function
+
+    {config} (function) Optional. Custom configuration function.
+             Called after plugin is loaded.
+
+    {enabled} (boolean) Optional. Enable or disable the plugin. Default: true
+
+    {priority} (number) Optional. Load priority. Higher numbers load earlier.
+               Default: 50
+
+Example specifications: ~
+>lua
+    pack.add({
+      -- Simple plugin
+      'nvim-lua/plenary.nvim',
+      
+      -- Plugin with setup configuration
+      {
+        src = 'folke/which-key.nvim',
+        setup = {
+          plugins = { spelling = true },
+          triggers_blacklist = { i = { 'j', 'k' } }
+        }
+      },
+      
+      -- Plugin with custom config
+      {
+        src = 'nvim-treesitter/nvim-treesitter',
+        build = ':TSUpdate',
+        config = function()
+          require('nvim-treesitter.configs').setup({
+            highlight = { enable = true },
+            indent = { enable = true }
+          })
+        end
+      },
+      
+      -- Lazy loaded plugin
+      {
+        src = 'telescope.nvim',
+        lazy = true,
+        cmd = { 'Telescope' },
+        keys = {
+          { '<leader>ff', ':Telescope find_files<CR>', desc = 'Find Files' },
+          { '<leader>fg', ':Telescope live_grep<CR>', desc = 'Live Grep' }
+        },
+        dependencies = { 'plenary.nvim' }
+      }
+    })
+<
+
+==============================================================================
+7. COMMANDS                                           *pack-manager-commands*
+
+Pack-manager provides several user commands for managing plugins.
+
+:Pack {subcommand}                                                    *:Pack*
+    Main command interface for pack-manager operations.
+
+    Subcommands: ~
+        status    Show status of all managed plugins
+        update    Update all plugins or specified plugins
+        install   Install missing plugins
+        sync      Install missing plugins and update existing ones
+        clean     Remove unused plugins from disk
+
+    Examples: ~
+>vim
+        :Pack status
+        :Pack update
+        :Pack install
+        :Pack sync
+        :Pack clean
+<
+
+Individual commands (also available): ~
+
+:PackStatus                                                      *:PackStatus*
+    Show detailed status of all managed plugins, including loaded state,
+    installation status, and any issues.
+
+:PackUpdate [{names}]                                            *:PackUpdate*
+    Update plugins. Without arguments, updates all plugins. With arguments,
+    updates only the specified plugins.
+    
+    Examples: ~
+>vim
+        :PackUpdate                    " Update all plugins
+        :PackUpdate telescope plenary  " Update specific plugins
+<
+
+:PackInstall                                                    *:PackInstall*
+    Install any missing plugins that are specified in configuration but not
+    present on disk.
+
+:PackSync                                                          *:PackSync*
+    Combination of :PackInstall and :PackUpdate. Installs missing plugins
+    and updates existing ones.
+
+:PackClean                                                        *:PackClean*
+    Remove plugins from disk that are no longer specified in configuration.
+    Use with caution - this will permanently delete plugin directories.
+
+==============================================================================
+8. API FUNCTIONS                                       *pack-manager-api*
+
+pack-manager.add({specs}, {opts})                        *pack-manager.add()*
+    Add plugins to the current session.
+
+    Parameters: ~
+        {specs} (table) List of plugin specifications
+        {opts} (table|nil) Options:
+            {load} (boolean) Whether to load plugins immediately. Default: true
+
+    This function processes plugin specifications, installs missing plugins,
+    sets up lazy loading, and configures non-lazy plugins.
+
+pack-manager.load_plugin({name})                  *pack-manager.load_plugin()*
+    Manually load a specific plugin.
+
+    Parameters: ~
+        {name} (string) Plugin name to load
+
+    Returns: ~
+        (boolean) true if plugin was loaded successfully, false otherwise
+
+pack-manager.status()                                  *pack-manager.status()*
+    Display status information for all managed plugins. Shows loaded state,
+    installation status, and counts.
+
+pack-manager.update({names}, {opts})                *pack-manager.update()*
+    Update plugins.
+
+    Parameters: ~
+        {names} (table|nil) List of plugin names to update. If nil, updates all
+        {opts} (table|nil) Options:
+            {force} (boolean) Skip confirmation and update immediately
+
+pack-manager.install_missing()                  *pack-manager.install_missing()*
+    Install any plugins that are specified in configuration but missing from
+    disk.
+
+pack-manager.sync()                                      *pack-manager.sync()*
+    Install missing plugins and update existing ones. Equivalent to calling
+    install_missing() followed by update().
+
+pack-manager.clean()                                    *pack-manager.clean()*
+    Remove plugins from disk that are no longer managed (not in current
+    configuration).
+
+pack-manager.get_plugins()                        *pack-manager.get_plugins()*
+    Get information about all managed plugins.
+
+    Returns: ~
+        (table) Dictionary of plugin information keyed by plugin name
+
+==============================================================================
+9. LAZY LOADING                                        *pack-manager-lazy*
+
+Pack-manager supports several lazy loading mechanisms to improve startup time.
+
+Event-based loading: ~
+>lua
+    {
+      src = 'plugin/repo',
+      lazy = true,
+      event = 'BufRead',        -- Load on BufRead event
+      -- or
+      event = {'BufRead', 'BufNewFile'}  -- Multiple events
+    }
+<
+
+Command-based loading: ~
+>lua
+    {
+      src = 'plugin/repo',
+      lazy = true,
+      cmd = 'PluginCommand',    -- Load when command is used
+      -- or
+      cmd = {'Cmd1', 'Cmd2'}    -- Multiple commands
+    }
+<
+
+Filetype-based loading: ~
+>lua
+    {
+      src = 'plugin/repo',
+      lazy = true,
+      ft = 'lua',               -- Load for lua files
+      -- or
+      ft = {'lua', 'vim'}       -- Multiple filetypes
+    }
+<
+
+Key-based loading: ~
+>lua
+    {
+      src = 'plugin/repo',
+      lazy = true,
+      keys = {
+        '<leader>ff',           -- Simple key
+        {'<leader>fg', ':Telescope live_grep<CR>', desc = 'Live Grep'},
+        {
+          '<leader>fb',         -- Advanced key specification
+          function() require('telescope.builtin').buffers() end,
+          mode = 'n',
+          desc = 'Buffers'
+        }
+      }
+    }
+<
+
+Special events: ~
+    VeryLazy  - Converted to UIEnter event, loads after UI initialization
+
+==============================================================================
+10. HOOKS                                              *pack-manager-hooks*
+
+Hooks allow you to run custom code at specific points during plugin operations.
+
+Available hooks: ~
+
+    pre_install    Called before installing a plugin
+    post_install   Called after installing a plugin
+    pre_update     Called before updating plugins
+    post_update    Called after updating plugins
+    pre_load       Called before loading a plugin
+    post_load      Called after loading a plugin
+
+Hook function signature: ~
+>lua
+    function hook(data)
+      -- data contains:
+      -- data.spec - Plugin specification
+      -- data.path - Plugin path on disk (for install/update hooks)
+      -- For pre/post_update, data might be a list of plugin names
+    end
+<
+
+Example: ~
+>lua
+    require('pack-manager').setup({
+      hooks = {
+        post_install = function(data)
+          vim.notify('Installed: ' .. data.spec.src)
+        end,
+        pre_load = function(name, plugin)
+          print('Loading plugin: ' .. name)
+        end
+      }
+    })
+<
+
+==============================================================================
+11. MIGRATION GUIDE                                *pack-manager-migration*
+
+From lazy.nvim: ~
+
+Most lazy.nvim configurations work with minimal changes:
+• 'user/repo' format works the same
+• lazy = true works the same
+• event, cmd, ft work the same
+• dependencies work the same
+• opts = {} should become setup = {}
+• init = function() should become config = function()
+
+Example migration: ~
+>lua
+    -- lazy.nvim
+    {
+      'folke/which-key.nvim',
+      lazy = true,
+      keys = { '<leader>' },
+      opts = { plugins = { spelling = true } }
+    }
+    
+    -- pack-manager
+    {
+      src = 'folke/which-key.nvim',
+      lazy = true,
+      keys = { '<leader>' },
+      setup = { plugins = { spelling = true } }
+    }
+<
+
+From packer.nvim: ~
+• use 'user/repo' becomes 'user/repo' in pack.add({})
+• requires = {} becomes dependencies = {}
+• run = 'command' becomes build = 'command'
+• config = function() works the same
+• after = {} needs to be handled with dependencies
+• cond = function() becomes enabled = function()
+
+From vim-plug: ~
+• Plug 'user/repo' becomes 'user/repo'
+• on-demand loading needs to be converted to lazy loading syntax
+• post-update hooks need to use build option
+
+==============================================================================
+12. TROUBLESHOOTING                            *pack-manager-troubleshooting*
+
+Common issues and solutions:
+
+Plugin not loading: ~
+• Check :Pack status to see plugin state
+• Verify plugin specification is correct
+• Check for conflicting lazy loading conditions
+• Look for errors in :messages
+
+Plugin configuration not working: ~
+• Ensure setup vs config is used correctly
+• Check plugin documentation for correct setup format
+• Verify plugin is loaded before configuration runs
+
+Dependency issues: ~
+• Check dependency names match exactly
+• Ensure dependencies are included in configuration
+• Use :Pack status to verify dependency load order
+
+Performance issues: ~
+• Use lazy loading for non-essential plugins
+• Check startup time with vim --startuptime
+• Consider plugin priority settings
+
+Installation problems: ~
+• Verify git is installed and accessible
+• Check network connectivity
+• Look for permission issues in data directory
+
+Getting help: ~
+• Check :messages for error details
+• Use :Pack status for plugin states
+• Review plugin documentation
+• Check pack-manager repository issues
+
+==============================================================================
+vim:tw=78:ts=8:sw=4:sts=4:et:ft=help:norl:
