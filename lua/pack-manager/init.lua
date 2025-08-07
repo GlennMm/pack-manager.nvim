@@ -35,7 +35,7 @@ local default_config = {
 -- Utility functions
 local function notify(msg, level)
 	if config.show_progress then
-		vim.notify("[PackManager] " .. msg, level or config.log_level)
+		-- vim.notify("[PackManager] " .. msg, level or config.log_level)
 	end
 end
 
@@ -448,7 +448,6 @@ function M.setup(user_config)
 		M.sync()
 	end, { desc = "Install missing and update all" })
 
-	notify("PackManager initialized")
 end
 
 function M.add(user_specs, opts)
@@ -479,7 +478,6 @@ function M.add(user_specs, opts)
 		end
 	end
 
-	notify("Initialized " .. #load_order .. " plugins successfully!")
 end
 
 function M.load_plugin(name)
