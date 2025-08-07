@@ -393,7 +393,7 @@ function M.configure_plugin(name)
 	end
 
 	local config_type = meta.setup and " with setup" or (meta.config and " with config" or " default")
-	notify("✓ Configured " .. name .. config_type)
+	-- notify("✓ Configured " .. name .. config_type)
 	return true
 end
 
@@ -454,12 +454,12 @@ function M.add(user_specs, opts)
 	opts = opts or {}
 	local load_plugins = opts.load ~= false
 
-	notify("Processing " .. #user_specs .. " plugin specifications...")
+	-- notify("Processing " .. #user_specs .. " plugin specifications...")
 
 	local specs = normalize_specs(user_specs)
 
 	-- Install plugins via vim.pack
-	notify("Installing/loading plugins via vim.pack...")
+	-- notify("Installing/loading plugins via vim.pack...")
 	vim.pack.add(specs, { load = load_plugins })
 
 	-- Resolve load order
@@ -469,7 +469,7 @@ function M.add(user_specs, opts)
 	setup_lazy_loading()
 
 	-- Configure non-lazy plugins in dependency order
-	notify("Configuring plugins...")
+	-- notify("Configuring plugins...")
 	for _, name in ipairs(load_order) do
 		local plugin = plugins[name]
 		if plugin and plugin.metadata.enabled and not plugin.metadata.lazy then
