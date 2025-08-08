@@ -309,15 +309,14 @@ local function render_help()
     "  Management:",
     "    I           Install missing plugins",
     "    U           Update all plugins",
-    "    X           Delete plugin at cursor (with confirmation)",
     "",
     "  General:",
     "    ?           This help",
     "    q           Close window",
     "",
-    "  Plugin Operations:",
-    "    - Navigate to a plugin using arrow keys or ]] / [[",
-    "    - Press X on any plugin to delete it",
+    "  Plugin Management:",
+    "    - To remove a plugin, edit your config file",
+    "    - Navigate plugins using ]] / [[ keys",
     "    - Press <Enter> to see plugin details",
     "",
   }
@@ -359,66 +358,11 @@ end
 -- Find plugin name at cursor
 local function get_plugin_at_cursor()
   local line = api.nvim_get_current_line()
-  -- Try different patterns to match plugin lines
   local plugin_name = line:match("  [●○✓✗⏳⚠ⓘ↑] (%S+)")
   if not plugin_name then
-    -- More flexible pattern - any single character followed by space and plugin name
     plugin_name = line:match("  . (%S+)")
   end
-  if not plugin_name then
-    -- Even more flexible - look for pattern starting with spaces
-    plugin_name = line:match("^  %S+ (%S+)")
-  end
-  
-  -- Debug: print what we found
-  if plugin_name then
-    print("Found plugin: " .. plugin_name)
-  else
-    print("No plugin found in line: " .. line)
-  end
-  
   return plugin_name
-end
-
--- Delete plugin with confirmation
-local function delete_plugin()
-  local plugin_name = get_plugin_at_cursor()
-  if not plugin_name then
-    print("No plugin found at cursor")
-    return
-  end
-  
-  -- Ask for confirmation
-  local choice = vim.fn.confirm(
-    "Delete plugin '" .. plugin_name .. "'?\nThis will:\n- Uninstall the plugin\n- Remove it from your config",
-    "&Yes\n&No",
-    2
-  )
-  
-  if choice == 1 then -- Yes
-    -- Close the UI temporarily
-    local was_open = ui_state.win and api.nvim_win_is_valid(ui_state.win)
-    if was_open then
-      M.close()
-    end
-    
-    -- Get pack manager and delete the plugin
-    local pack_manager = require('pack-manager')
-    local success, err = pcall(pack_manager.remove_plugin, plugin_name)
-    
-    if success then
-      print("Plugin '" .. plugin_name .. "' deleted successfully")
-    else
-      print("Error deleting plugin '" .. plugin_name .. "': " .. (err or "unknown error"))
-    end
-    
-    -- Reopen the UI if it was open
-    if was_open then
-      vim.schedule(function()
-        M.open()
-      end)
-    end
-  end
 end
 
 -- Toggle plugin details
@@ -548,7 +492,6 @@ local function setup_keymaps()
     [M.config.keymaps.next_plugin] = next_plugin,
     [M.config.keymaps.prev_plugin] = prev_plugin,
     [M.config.keymaps.help] = function() ui_state.mode = "help"; update_display() end,
-    ["X"] = delete_plugin, -- Add X key for deleting plugins
   }
   
   for key, func in pairs(keymaps) do

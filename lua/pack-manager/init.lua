@@ -641,36 +641,6 @@ function M.get_plugins()
 	return plugins
 end
 
--- Remove a plugin completely
-function M.remove_plugin(name)
-	if not plugins[name] then
-		error("Plugin '" .. name .. "' not found")
-	end
-	
-	-- Get the plugin spec to determine the directory
-	local plugin = plugins[name]
-	local spec = plugin.spec
-	
-	-- Remove from pack system
-	local pack_plugins = vim.pack.get()
-	for _, pack_plugin in ipairs(pack_plugins) do
-		local pack_name = get_plugin_name(pack_plugin.spec)
-		if pack_name == name then
-			-- Remove the plugin directory
-			local plugin_dir = pack_plugin.spec.dir
-			if plugin_dir and vim.fn.isdirectory(plugin_dir) == 1 then
-				vim.fn.delete(plugin_dir, "rf")
-			end
-			break
-		end
-	end
-	
-	-- Remove from our registry
-	plugins[name] = nil
-	
-	notify("Plugin '" .. name .. "' has been removed")
-	return true
-end
 
 -- UI Integration
 function M.ui()
