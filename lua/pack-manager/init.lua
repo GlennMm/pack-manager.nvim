@@ -179,8 +179,13 @@ local function setup_lazy_keymaps(name, keys)
 	for _, keymap in ipairs(keymaps) do
 		if type(keymap) == "string" then
 			vim.keymap.set("n", keymap, function()
+				-- Remove the temporary keymap first
+				vim.keymap.del("n", keymap)
 				M.load_plugin(name)
-				vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(keymap, true, false, true), "n", false)
+				-- Schedule the key re-trigger to happen after plugin configuration
+				vim.schedule(function()
+					vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(keymap, true, false, true), "n", false)
+				end)
 			end, { desc = "Load " .. name })
 		elseif type(keymap) == "table" then
 			local key = keymap[1] or keymap.key
@@ -192,17 +197,28 @@ local function setup_lazy_keymaps(name, keys)
 			}, keymap.opts or {})
 
 			vim.keymap.set(mode, key, function()
+				-- Remove the temporary keymap first
+				vim.keymap.del(mode, key)
 				M.load_plugin(name)
 				if type(cmd) == "string" then
-					vim.cmd(cmd)
+					-- Schedule command execution after plugin loads
+					vim.schedule(function()
+						vim.cmd(cmd)
+					end)
 				elseif type(cmd) == "function" then
-					cmd()
+					-- Schedule function execution after plugin loads
+					vim.schedule(function()
+						cmd()
+					end)
 				else
-					vim.api.nvim_feedkeys(
-						vim.api.nvim_replace_termcodes(key, true, false, true),
-						mode == "n" and "n" or "m",
-						false
-					)
+					-- Schedule key feeding after plugin loads
+					vim.schedule(function()
+						vim.api.nvim_feedkeys(
+							vim.api.nvim_replace_termcodes(key, true, false, true),
+							mode == "n" and "n" or "m",
+							false
+						)
+					end)
 				end
 			end, opts)
 		end
