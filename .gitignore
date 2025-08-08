@@ -69,3 +69,4 @@ doc/tags-*
 *.bak
 *.backup
 *~
+.claude/

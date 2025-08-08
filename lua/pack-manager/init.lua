@@ -571,6 +571,9 @@ function M.install_missing()
 	end
 end
 
+-- Alias for compatibility  
+M.install = M.install_missing
+
 function M.sync()
 	M.install_missing()
 	M.update()
@@ -637,6 +640,60 @@ end
 function M.get_plugins()
 	return plugins
 end
+
+-- Remove a plugin completely
+function M.remove_plugin(name)
+	if not plugins[name] then
+		error("Plugin '" .. name .. "' not found")
+	end
+	
+	-- Get the plugin spec to determine the directory
+	local plugin = plugins[name]
+	local spec = plugin.spec
+	
+	-- Remove from pack system
+	local pack_plugins = vim.pack.get()
+	for _, pack_plugin in ipairs(pack_plugins) do
+		local pack_name = get_plugin_name(pack_plugin.spec)
+		if pack_name == name then
+			-- Remove the plugin directory
+			local plugin_dir = pack_plugin.spec.dir
+			if plugin_dir and vim.fn.isdirectory(plugin_dir) == 1 then
+				vim.fn.delete(plugin_dir, "rf")
+			end
+			break
+		end
+	end
+	
+	-- Remove from our registry
+	plugins[name] = nil
+	
+	notify("Plugin '" .. name .. "' has been removed")
+	return true
+end
+
+-- UI Integration
+function M.ui()
+	local success, ui = pcall(require, 'pack-manager.ui')
+	if not success then
+		print("Error loading UI module: " .. ui)
+		return
+	end
+	
+	local ok, err = pcall(ui.open)
+	if not ok then
+		print("Error opening UI: " .. err)
+	end
+end
+
+-- Pack command is defined in plugin/pack-manager.lua to avoid loading issues
+
+-- Dashboard shortcut compatibility
+vim.api.nvim_create_user_command('PackUpdate', function() M.update() end, {})
+vim.api.nvim_create_user_command('PackInstall', function() M.install() end, {})
+vim.api.nvim_create_user_command('PackSync', function() M.sync() end, {})
+vim.api.nvim_create_user_command('PackClean', function() M.clean() end, {})
+vim.api.nvim_create_user_command('PackStatus', function() M.status() end, {})
 
 -- Compatibility with other plugin managers
 M.lazy = M.add
